@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:14.5
+    environment:
+      POSTGRES_DB: contas
+      POSTGRES_USER: contas
+      POSTGRES_PASSWORD: contas
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contas"]
+      interval: 10s
+      retries: 5
+    ports:
+      - "5432:5432"
+  flyway:
+    image: flyway/flyway:9.9.0
+    entrypoint:
+      - sh
+      - -c
+      - flyway -defaultSchema=public -baselineOnMigrate=true -connectRetries=60 -url=jdbc:postgresql://db:5432/contas -user=contas -password=contas migrate
+    depends_on:
+      - db
+    volumes:
+      - ./src/main/resources/db/migration:/flyway/sql
+  app:
+    image: contas-api
+    container_name: contas-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/contas
+      - SPRING_DATASOURCE_USERNAME=contas
+      - SPRING_DATASOURCE_PASSWORD=contas
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
